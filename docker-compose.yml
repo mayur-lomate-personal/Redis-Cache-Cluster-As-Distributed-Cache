@@ -1,0 +1,97 @@
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:14.5-alpine
+    environment:
+      POSTGRES_USER: mayur
+      POSTGRES_PASSWORD: mayur123
+    ports:
+      - "5432:5432"
+    networks:
+      - postgres
+    restart: unless-stopped
+
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    networks:
+      - postgres
+    restart: unless-stopped
+
+  redis-cache-1:
+    container_name: redis-cache-1
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      cache_cluster_subnet:
+        ipv4_address: 172.20.1.31
+
+  redis-cache-2:
+    container_name: redis-cache-2
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6380:6379'
+    command: redis-server --save 20 1 --loglevel warning --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      cache_cluster_subnet:
+        ipv4_address: 172.20.1.32
+
+  redis-cache-3:
+    container_name: redis-cache-3
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6381:6379'
+    command: redis-server --save 20 1 --loglevel warning --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      cache_cluster_subnet:
+        ipv4_address: 172.20.1.33
+
+  redis-cluster:
+    container_name: redis-cluster
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6382:6379'
+    command: redis-cli --cluster create 172.20.1.31:6379 172.20.1.32:6379 172.20.1.33:6379 --cluster-yes
+    networks:
+      cache_cluster_subnet:
+        ipv4_address: 172.20.1.30
+    depends_on:
+      -   redis-cache-1
+      -   redis-cache-2
+      -   redis-cache-3
+
+  item-operations-server:
+    image: mayurlomate/redis-cache-cluster-distributed-cache-item
+    container_name: item-operations-server
+    ports:
+      - "8091:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE = docker
+    networks:
+      postgres:
+      cache_cluster_subnet:
+        ipv4_address: 172.20.1.10
+    depends_on:
+      - postgres
+      - redis-cluster
+
+networks:
+  postgres:
+    driver: bridge
+  cache_cluster_subnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.1.0/26

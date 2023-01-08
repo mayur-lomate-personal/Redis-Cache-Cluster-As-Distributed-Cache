@@ -1,0 +1,28 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: item-operations-server
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+  datasource:
+    username: 'mayur'
+    url: jdbc:postgresql://postgres:5432/item
+    password: 'mayur123'
+  cache:
+    type: redis
+    redis:
+      cache-null-values: true
+      time-to-live: 40000
+  redis:
+    cluster:
+      nodes:
+        - redis-cache-1:6379
+        - redis-cache-2:6379
+        - redis-cache-3:6379
